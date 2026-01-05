@@ -1,56 +1,686 @@
-<!DOCTYPE html>
-<html lang="en">
-
+<!doctype html>
+<html lang="id">
 <head>
-  <!-- 
-      This is an HTML comment
-      You can write text in a comment and the content won't be visible in the page
-    -->
-
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="https://glitch.com/favicon.ico" />
-
-  <!--
-      This is the page head - it contains info the browser uses
-      Like the title, which appears on the browser tab but not inside the page
-      Further down you'll see the content that displays in the page
-    -->
-  <title>Hello World!</title>
-
-  <!-- The website stylesheet -->
-  <link rel="stylesheet" href="/style.css" />
-
-  <!-- The website JavaScript file -->
-  <script src="/script.js" defer></script>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Groovity — All Features</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#ff7e5f"/>
+  <style>
+    :root{
+      --bg1:#ff7e5f; --bg2:#feb47b; --panel: rgba(255,255,255,0.06);
+      --accent:#111; --white:#fff;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif}
+    body{
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:var(--white);padding:20px;
+    }
+    .app{width:100%;max-width:1080px;background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));border-radius:12px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,0.25)}
+    header{display:flex;gap:16px;align-items:center}
+    h1{margin:0;font-size:1.4rem}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+    button,input[type=file],select{background:var(--accent);color:var(--white);border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .slider{appearance:none;height:8px;border-radius:999px;background:#333;outline:none;width:140px}
+    label{display:flex;align-items:center;gap:8px;color:#fff}
+    .row{display:flex;gap:12px;align-items:center;margin-top:12px}
+    .panel{background:var(--panel);padding:12px;border-radius:10px;width:100%}
+    .left{flex:1}
+    .right{width:420px}
+    canvas{width:100%;height:120px;display:block;border-radius:8px}
+    .sequencer{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;margin-top:12px}
+    .step{height:30px;background:#222;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.8rem}
+    .step.on{background:#fff;color:#111}
+    .instrument-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .pads{display:flex;gap:8px}
+    .pad{padding:10px 12px;border-radius:8px;background:#222;cursor:pointer}
+    .tempo{display:flex;align-items:center;gap:8px}
+    .small{font-size:0.85rem;opacity:0.95}
+    .export-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    @media (max-width:920px){ .right{width:100%} header{flex-direction:column;align-items:flex-start} canvas{height:90px} .sequencer{grid-template-columns:repeat(8,1fr)} }
+  </style>
 </head>
-
 <body>
-  <!--
-      The body includes the content you see in the page
-      Each element is defined using tags, like this <div></div>
-      The attributes like class="wrapper" let us style elements in the CSS
-    -->
-  <div class="wrapper">
-    <div class="content" role="main">
-      <h1 class="title">Oh hi website!</h1>
-      <img src="/cool-website.svg" class="illustration" alt="cool website" />
-      <div class="instructions">
-        <p>
-          Fork <a href="https://github.com/glitchdotcom/website-to-compute">this project</a> and open it in a GitHub Codespace.
-        </p>
-        <p> Follow the steps in the README to deploy your new website to Fastly in a few steps!
-        </p>
-
+  <main class="app" aria-label="Groovity full app">
+    <header>
+      <div>
+        <h1>Groovity — Full Feature Edition</h1>
+        <p class="small" style="margin:6px 0 0">Drum sequencer, load audio, visualiser, mixer, export WAV, PWA-ready.</p>
       </div>
+      <div style="margin-left:auto" id="status" aria-live="polite">Stopped</div>
+    </header>
 
-      <footer class="footer">
-        <div>
-          <a class="remix" href="https://github.com/glitchdotcom/website-to-compute">🚧 Get your own site</a>
+    <div class="row">
+      <section class="panel left" aria-label="Main controls and visualiser">
+        <div class="controls" role="region" aria-label="Playback controls">
+          <button id="playBtn" aria-pressed="false">Play</button>
+          <button id="stopBtn">Stop</button>
+          <label><input id="loopChk" type="checkbox" /> Loop</label>
+          <label>Volume <input id="masterVol" class="slider" type="range" min="0" max="1" step="0.01" value="0.9"></label>
+          <label>Tempo <input id="tempo" type="number" min="40" max="220" value="120" style="width:72px;padding:8px;border-radius:8px"></label>
+          <label>Steps <select id="numSteps"><option>8</option><option selected>16</option><option>32</option></select></label>
         </div>
-      </footer>
-    </div>
-  </div>
-</body>
 
+        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;align-items:center">
+          <label for="fileInput">Load audio <input id="fileInput" type="file" accept="audio/*" style="display:none"></label>
+          <button id="loadBtn">Load Audio</button>
+          <button id="sampleBtn">Use Sample</button>
+          <button id="exportBtn">Export to WAV</button>
+          <button id="renderBtn">Render 8 bars WAV</button>
+          <div class="small" style="margin-left:auto">Tips: Space = Play/Pause, S = Stop</div>
+        </div>
+
+        <canvas id="vis" aria-hidden="false"></canvas>
+
+        <div style="margin-top:12px">
+          <strong>Sequencer</strong>
+          <div id="sequencerArea" style="margin-top:8px"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <strong>Drum Pads</strong>
+          <div class="pads" id="pads"></div>
+        </div>
+      </section>
+
+      <aside class="panel right" aria-label="Mixer and tracks">
+        <div>
+          <strong>Mixer</strong>
+          <div id="mixerList" style="margin-top:8px"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <strong>Export / Record</strong>
+          <div class="export-list">
+            <button id="recordBtn">Record (Offline Render)</button>
+            <button id="downloadRecorded" disabled>Download Last</button>
+          </div>
+          <div class="small" style="margin-top:8px">Export uses OfflineAudioContext to produce a WAV you can download.</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <audio id="audioElement" crossorigin="anonymous" style="display:none"></audio>
+
+  <script>
+  // ---------- Globals ----------
+  const audioEl = document.getElementById('audioElement');
+  let audioCtx = null;
+  let masterGain = null;
+  let analyser = null;
+  let masterDestination = null;
+  let mediaStreamDestination = null; // optional
+  let buffers = {}; // named AudioBuffer for drum samples + loaded audio
+  let loadedAudioBuffer = null;
+  const SAMPLE_URL = 'https://cdn.jsdelivr.net/gh/mdn/webaudio-examples@gh-pages/audio/loop.ogg';
+
+  // Sequencer state
+  let tempoEl = document.getElementById('tempo');
+  let numStepsEl = document.getElementById('numSteps');
+  let tempo = parseInt(tempoEl.value);
+  let numSteps = parseInt(numStepsEl.value);
+  let currentStep = 0;
+  let isPlaying = false;
+  let schedulerTimer = null;
+  const lookahead = 0.1; // seconds
+  const scheduleInterval = 25; // ms
+  const scheduleAheadTime = 0.2; // seconds
+  let nextNoteTime = 0;
+  let steps = {}; // per-instrument boolean arrays
+  let instruments = ['kick','snare','hihat','audio']; // audio is user-loaded track
+  let instrumentGains = {}; // store gain values for export recreation
+  let instrumentMuted = {};
+
+  // UI elements
+  const statusEl = document.getElementById('status');
+  const playBtn = document.getElementById('playBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const loopChk = document.getElementById('loopChk');
+  const masterVol = document.getElementById('masterVol');
+  const fileInput = document.getElementById('fileInput');
+  const loadBtn = document.getElementById('loadBtn');
+  const sampleBtn = document.getElementById('sampleBtn');
+  const vis = document.getElementById('vis');
+  const sequencerArea = document.getElementById('sequencerArea');
+  const pads = document.getElementById('pads');
+  const mixerList = document.getElementById('mixerList');
+  const exportBtn = document.getElementById('exportBtn');
+  const renderBtn = document.getElementById('renderBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const downloadRecorded = document.getElementById('downloadRecorded');
+
+  // recorded result (Blob)
+  let lastRenderedBlob = null;
+
+  // ---------- AudioContext & Nodes ----------
+  function ensureAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = parseFloat(masterVol.value);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      masterGain.connect(analyser);
+      analyser.connect(audioCtx.destination);
+
+      // also create stream destination for optional live recording (not used for WAV export)
+      mediaStreamDestination = audioCtx.createMediaStreamDestination();
+      masterGain.connect(mediaStreamDestination);
+    }
+  }
+
+  // ---------- Visualiser ----------
+  const canvas = vis;
+  const ctx = canvas.getContext('2d');
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    ctx.scale(dpr, dpr);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+  function drawVis() {
+    if (!analyser) return;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    ctx.clearRect(0,0,width,height);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillRect(0,0,width,height);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
+    ctx.beginPath();
+    const slice = width / data.length;
+    let x=0;
+    for (let i=0;i<data.length;i++){
+      const v = data[i]/128.0;
+      const y = v * height/2;
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      x += slice;
+    }
+    ctx.stroke();
+    requestAnimationFrame(drawVis);
+  }
+
+  // ---------- Load Samples ----------
+  async function fetchAndDecode(url) {
+    const res = await fetch(url);
+    const ab = await res.arrayBuffer();
+    return await audioCtx.decodeAudioData(ab);
+  }
+
+  async function loadDefaultSamples() {
+    ensureAudioContext();
+    // Simple small samples (using some short sounds hosted)
+    // You can swap URLs for different sounds
+    buffers.kick = await fetchAndDecode('https://cdn.jsdelivr.net/gh/johnnybhoy/samples@master/kick.wav').catch(()=>null);
+    buffers.snare = await fetchAndDecode('https://cdn.jsdelivr.net/gh/johnnybhoy/samples@master/snare.wav').catch(()=>null);
+    buffers.hihat = await fetchAndDecode('https://cdn.jsdelivr.net/gh/johnnybhoy/samples@master/hh.wav').catch(()=>null);
+
+    // Fallbacks: if sample hosting fails, create simple synthetic sounds
+    if (!buffers.kick) buffers.kick = createKickBuffer();
+    if (!buffers.snare) buffers.snare = createSnareBuffer();
+    if (!buffers.hihat) buffers.hihat = createHihatBuffer();
+
+    // set default steps arrays
+    instruments.forEach(ins=>{
+      steps[ins] = new Array(numSteps).fill(false);
+      instrumentGains[ins] = 1.0;
+      instrumentMuted[ins] = false;
+    });
+  }
+
+  // Synthetic sample creators (fallback)
+  function createKickBuffer() {
+    const sr = audioCtx.sampleRate;
+    const len = sr * 0.25;
+    const b = audioCtx.createBuffer(1,len,sr);
+    const d = b.getChannelData(0);
+    for (let i=0;i<len;i++){
+      const t = i/len;
+      d[i] = Math.sin(2*Math.PI*60*t*Math.pow(1-t,3)) * (1-t) * 0.9;
+    }
+    return b;
+  }
+  function createSnareBuffer() {
+    const sr=audioCtx.sampleRate,len=sr*0.18,b=audioCtx.createBuffer(1,len,sr),d=b.getChannelData(0);
+    for(let i=0;i<len;i++){
+      d[i] = (Math.random()*2-1) * Math.pow(1 - i/len,2) * 0.7;
+    }
+    return b;
+  }
+  function createHihatBuffer(){
+    const sr=audioCtx.sampleRate,len=sr*0.06,b=audioCtx.createBuffer(1,len,sr),d=b.getChannelData(0);
+    for(let i=0;i<len;i++){
+      d[i] = (Math.random()*2-1) * Math.pow(1 - i/len,3) * 0.6;
+    }
+    return b;
+  }
+
+  // ---------- Sequencer Scheduling ----------
+  function nextNote() {
+    // 16th notes: seconds per quarter = 60/tempo. 16th = quarter/4
+    const secondsPerBeat = 60.0 / tempo;
+    const secondsPer16th = secondsPerBeat / 4;
+    nextNoteTime += secondsPer16th;
+    currentStep = (currentStep + 1) % numSteps;
+  }
+
+  function scheduleNote(step, time) {
+    // schedule each instrument for this step
+    instruments.forEach(ins => {
+      if (ins === 'audio') {
+        // we don't schedule audio track per-step (it's a continuous element); otherwise leave
+        return;
+      }
+      if (steps[ins][step]) {
+        const buffer = buffers[ins];
+        if (!buffer) return;
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const g = audioCtx.createGain();
+        g.gain.value = instrumentMuted[ins] ? 0 : instrumentGains[ins];
+        src.connect(g);
+        g.connect(masterGain);
+        src.start(time);
+      }
+    });
+  }
+
+  function scheduler() {
+    if (!isPlaying) return;
+    while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+      // highlight UI step
+      highlightStep(currentStep);
+      // schedule note at nextNoteTime
+      scheduleNote(currentStep, nextNoteTime);
+      nextNote();
+    }
+  }
+
+  function startSequencer() {
+    if (!audioCtx) ensureAudioContext();
+    if (!analyser) analyser = audioCtx.createAnalyser();
+    isPlaying = true;
+    currentStep = 0;
+    const secondsPerBeat = 60.0 / tempo;
+    const secondsPer16th = secondsPerBeat / 4;
+    nextNoteTime = audioCtx.currentTime + 0.05;
+    schedulerTimer = setInterval(scheduler, scheduleInterval);
+    playBtn.setAttribute('aria-pressed','true'); playBtn.textContent = 'Pause';
+    statusEl.textContent = 'Playing';
+    drawVis();
+  }
+
+  function stopSequencer() {
+    isPlaying = false;
+    clearInterval(schedulerTimer);
+    playBtn.setAttribute('aria-pressed','false'); playBtn.textContent = 'Play';
+    statusEl.textContent = 'Stopped';
+    highlightStep(-1);
+  }
+
+  // UI: highlight sequencer steps
+  function highlightStep(step) {
+    const children = sequencerArea.querySelectorAll('.step');
+    children.forEach((c,i)=> {
+      c.style.boxShadow = (i % numSteps === step) ? '0 0 8px rgba(255,255,255,0.4)' : 'none';
+    });
+  }
+
+  // ---------- UI Build ----------
+  function buildSequencer() {
+    sequencerArea.innerHTML = '';
+    const rows = instruments.slice(0,3); // show first 3 instruments (kick snare hihat)
+    rows.forEach((ins)=>{
+      const row = document.createElement('div');
+      row.className = 'instrument-row';
+      const label = document.createElement('div');
+      label.style.width='70px';
+      label.textContent = ins;
+      row.appendChild(label);
+      const grid = document.createElement('div');
+      grid.className = 'sequencer';
+      grid.style.gridTemplateColumns = `repeat(${numSteps},1fr)`;
+      for (let i=0;i<numSteps;i++){
+        const s = document.createElement('button');
+        s.className = 'step';
+        s.setAttribute('data-ins',ins);
+        s.setAttribute('data-step',i);
+        s.addEventListener('click', ()=> {
+          steps[ins][i] = !steps[ins][i];
+          s.classList.toggle('on', steps[ins][i]);
+        });
+        grid.appendChild(s);
+      }
+      row.appendChild(grid);
+      sequencerArea.appendChild(row);
+    });
+  }
+
+  function buildPads() {
+    pads.innerHTML = '';
+    ['kick','snare','hihat'].forEach(name=>{
+      const p = document.createElement('button');
+      p.className = 'pad';
+      p.textContent = name;
+      p.addEventListener('click', ()=> { playBufferImmediate(name); });
+      pads.appendChild(p);
+    });
+  }
+
+  function playBufferImmediate(name) {
+    ensureAudioContext();
+    const buf = buffers[name];
+    if (!buf) return;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const g = audioCtx.createGain();
+    g.gain.value = instrumentMuted[name] ? 0 : instrumentGains[name];
+    src.connect(g); g.connect(masterGain);
+    src.start();
+  }
+
+  function buildMixer() {
+    mixerList.innerHTML = '';
+    instruments.forEach(ins=>{
+      const row = document.createElement('div');
+      row.style.display='flex';row.style.alignItems='center';row.style.gap='8px';row.style.marginBottom='8px';
+      const label = document.createElement('div'); label.style.width='60px'; label.textContent = ins;
+      const vol = document.createElement('input'); vol.type='range'; vol.min=0; vol.max=1; vol.step=0.01; vol.value=instrumentGains[ins]||1.0; vol.className='slider';
+      vol.addEventListener('input', ()=> { instrumentGains[ins]=parseFloat(vol.value); });
+      const mute = document.createElement('button'); mute.textContent='Mute'; mute.addEventListener('click', ()=>{ instrumentMuted[ins]=!instrumentMuted[ins]; mute.style.opacity = instrumentMuted[ins]?0.6:1; });
+      row.appendChild(label); row.appendChild(vol); row.appendChild(mute);
+      mixerList.appendChild(row);
+    });
+  }
+
+  // ---------- Loading user audio ----------
+  fileInput.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if (!f) return;
+    const ab = await f.arrayBuffer();
+    ensureAudioContext();
+    loadedAudioBuffer = await audioCtx.decodeAudioData(ab);
+    buffers.audio = loadedAudioBuffer;
+    statusEl.textContent = `Loaded: ${f.name} (${loadedAudioBuffer.duration.toFixed(2)}s)`;
+  });
+  loadBtn.addEventListener('click', ()=> fileInput.click());
+  sampleBtn.addEventListener('click', async ()=> {
+    ensureAudioContext();
+    // load the loop sample as the audio track
+    const res = await fetch(SAMPLE_URL);
+    const ab = await res.arrayBuffer();
+    loadedAudioBuffer = await audioCtx.decodeAudioData(ab);
+    buffers.audio = loadedAudioBuffer;
+    statusEl.textContent = `Loaded sample (${loadedAudioBuffer.duration.toFixed(2)}s)`;
+  });
+
+  // ---------- Playback controls ----------
+  playBtn.addEventListener('click', async () => {
+    ensureAudioContext();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    if (!isPlaying) {
+      startSequencer();
+    } else {
+      stopSequencer();
+    }
+  });
+
+  stopBtn.addEventListener('click', ()=> {
+    stopSequencer();
+    // if there were continuous audio playing (none here), we'd stop it
+    statusEl.textContent = 'Stopped';
+  });
+
+  masterVol.addEventListener('input', ()=> {
+    if (masterGain) masterGain.gain.value = parseFloat(masterVol.value);
+  });
+
+  tempoEl.addEventListener('input', ()=> {
+    tempo = parseInt(tempoEl.value);
+  });
+  numStepsEl.addEventListener('change', ()=> {
+    numSteps = parseInt(numStepsEl.value);
+    instruments.forEach(ins=> steps[ins] = new Array(numSteps).fill(false));
+    buildSequencer();
+  });
+
+  // keyboard shortcuts
+  window.addEventListener('keydown', (e)=> {
+    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+    if (e.key.toLowerCase() === 's') { stopBtn.click(); }
+  });
+
+  // ---------- Export to WAV (Offline Rendering) ----------
+  // Convert AudioBuffer to WAV Blob (16-bit PCM)
+  function audioBufferToWav(buffer, opt) {
+    opt = opt || {}
+    var numChannels = buffer.numberOfChannels
+    var sampleRate = buffer.sampleRate
+    var format = opt.float32 ? 3 : 1
+    var bitDepth = format === 3 ? 32 : 16
+    var result
+    if (numChannels === 2) {
+      result = interleave(buffer.getChannelData(0), buffer.getChannelData(1))
+    } else {
+      result = buffer.getChannelData(0)
+    }
+    return encodeWAV(result, format, sampleRate, numChannels, bitDepth)
+    function interleave(inputL, inputR){
+      var length = inputL.length + inputR.length
+      var result = new Float32Array(length)
+      var index = 0, inputIndex = 0
+      while (index < length){
+        result[index++] = inputL[inputIndex]
+        result[index++] = inputR[inputIndex]
+        inputIndex++
+      }
+      return result
+    }
+    function encodeWAV(samples, format, sampleRate, numChannels, bitDepth){
+      var bytesPerSample = bitDepth / 8
+      var blockAlign = numChannels * bytesPerSample
+      var buffer = new ArrayBuffer(44 + samples.length * bytesPerSample)
+      var view = new DataView(buffer)
+      /* RIFF identifier */
+      writeString(view, 0, 'RIFF')
+      /* file length */
+      view.setUint32(4, 36 + samples.length * bytesPerSample, true)
+      /* RIFF type */
+      writeString(view, 8, 'WAVE')
+      /* format chunk identifier */
+      writeString(view, 12, 'fmt ')
+      /* format chunk length */
+      view.setUint32(16, 16, true)
+      /* sample format (raw) */
+      view.setUint16(20, format === 3 ? 3 : 1, true)
+      /* channel count */
+      view.setUint16(22, numChannels, true)
+      /* sample rate */
+      view.setUint32(24, sampleRate, true)
+      /* byte rate (sample rate * block align) */
+      view.setUint32(28, sampleRate * blockAlign, true)
+      /* block align (channel count * bytes per sample) */
+      view.setUint16(32, blockAlign, true)
+      /* bits per sample */
+      view.setUint16(34, bitDepth, true)
+      /* data chunk identifier */
+      writeString(view, 36, 'data')
+      /* data chunk length */
+      view.setUint32(40, samples.length * bytesPerSample, true)
+      // Write the PCM samples
+      if (format === 1) { // PCM 16-bit
+        floatTo16BitPCM(view, 44, samples)
+      } else {
+        writeFloat32(view, 44, samples)
+      }
+      return new Blob([view], { type: 'audio/wav' })
+    }
+    function floatTo16BitPCM(output, offset, input){
+      for (var i = 0; i < input.length; i++, offset += 2){
+        var s = Math.max(-1, Math.min(1, input[i]));
+        output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+    }
+    function writeFloat32(output, offset, input){
+      for (var i = 0; i < input.length; i++, offset += 4){
+        output.setFloat32(offset, input[i], true);
+      }
+    }
+    function writeString(view, offset, string){
+      for (var i = 0; i < string.length; i++){
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+  }
+
+  // Build offline rendering graph and render WAV
+  async function exportMixToWav(durationSeconds = null) {
+    // requires: audioCtx exists and buffers for samples and optionally loaded audio
+    ensureAudioContext();
+    // Determine duration: if user specified duration, use it. Else compute from loadedAudioBuffer and sequence length (bars).
+    let seqBeats = (numSteps / 4); // number of quarter-note beats in sequence
+    let seqSeconds = seqBeats * (60/tempo);
+    let sourceDuration = loadedAudioBuffer ? loadedAudioBuffer.duration : 0;
+    let duration = durationSeconds || Math.max(seqSeconds, sourceDuration);
+    // We'll render one loop (or the given duration)
+    const sampleRate = audioCtx.sampleRate;
+    const offlineCtx = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
+
+    // Master gain for offline
+    const offlineMaster = offlineCtx.createGain();
+    offlineMaster.gain.value = parseFloat(masterVol.value);
+    offlineMaster.connect(offlineCtx.destination);
+
+    // schedule drums per step on offline context
+    const secondsPerBeat = 60.0 / tempo;
+    const secondsPer16th = secondsPerBeat / 4;
+
+    // For each instrument (kick, snare, hihat)
+    ['kick','snare','hihat'].forEach(ins => {
+      const buf = buffers[ins];
+      if (!buf) return;
+      for (let step=0; step < numSteps; step++){
+        if (!steps[ins][step]) continue;
+        const t = step * secondsPer16th;
+        if (t >= duration) continue;
+        const src = offlineCtx.createBufferSource();
+        src.buffer = buf;
+        const g = offlineCtx.createGain(); g.gain.value = instrumentMuted[ins] ? 0 : (instrumentGains[ins] || 1.0);
+        src.connect(g); g.connect(offlineMaster);
+        src.start(t);
+      }
+    });
+
+    // Add loaded audio (if present)
+    if (loadedAudioBuffer) {
+      const src = offlineCtx.createBufferSource();
+      src.buffer = loadedAudioBuffer;
+      const g = offlineCtx.createGain(); g.gain.value = instrumentMuted['audio'] ? 0 : (instrumentGains['audio'] || 1.0);
+      src.connect(g); g.connect(offlineMaster);
+      src.start(0);
+    }
+
+    // Render
+    statusEl.textContent = 'Rendering...';
+    const renderedBuffer = await offlineCtx.startRendering();
+    const wavBlob = audioBufferToWav(renderedBuffer);
+    statusEl.textContent = 'Rendered';
+    lastRenderedBlob = wavBlob;
+    downloadRecorded.disabled = false;
+    return wavBlob;
+  }
+
+  // ---------- Export / Record UI ----------
+  exportBtn.addEventListener('click', async ()=> {
+    try {
+      const blob = await exportMixToWav();
+      triggerDownload(blob, `groovity-mix-${Date.now()}.wav`);
+    } catch (err) {
+      console.error(err);
+      alert('Export failed: ' + err.message);
+    }
+  });
+
+  renderBtn.addEventListener('click', async ()=> {
+    // render 8 bars
+    const beatsPerBar = 4;
+    const bars = 8;
+    const seconds = (60/tempo) * beatsPerBar * bars;
+    try {
+      const blob = await exportMixToWav(seconds);
+      triggerDownload(blob, `groovity-render-${bars}bars.wav`);
+    } catch (err) {
+      console.error(err);
+      alert('Render failed: ' + err.message);
+    }
+  });
+
+  recordBtn.addEventListener('click', async ()=> {
+    if (!audioCtx) { alert('Start playing first to initialize audio context.'); return; }
+    // Offline render for current loop length
+    recordBtn.disabled = true;
+    const blob = await exportMixToWav();
+    lastRenderedBlob = blob;
+    downloadRecorded.disabled = false;
+    recordBtn.disabled = false;
+    alert('Rendered and available for download');
+  });
+
+  downloadRecorded.addEventListener('click', ()=> {
+    if (!lastRenderedBlob) return;
+    triggerDownload(lastRenderedBlob, `groovity-export-${Date.now()}.wav`);
+  });
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=> { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  }
+
+  // ---------- Init ----------
+  async function init() {
+    ensureAudioContext();
+    await loadDefaultSamples();
+    buildSequencer();
+    buildPads();
+    buildMixer();
+    drawVis();
+    statusEl.textContent = 'Ready';
+  }
+  init();
+
+  // clickable UI to initialize audio context if autoplay blocked
+  document.addEventListener('click', function firstTouch() {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    document.removeEventListener('click', firstTouch);
+  });
+
+  // Rebuild sequencer when number of steps changes
+  numStepsEl.addEventListener('change', ()=> {
+    numSteps = parseInt(numStepsEl.value);
+    instruments.forEach(ins => {
+      const old = steps[ins] || [];
+      steps[ins] = new Array(numSteps).fill(false);
+      for (let i=0;i<Math.min(old.length, numSteps); i++) steps[ins][i] = old[i];
+    });
+    buildSequencer();
+  });
+
+  </script>
+
+  <script>
+    // Register the service worker for PWA (if supported)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').then(()=> {
+        console.log('Service worker registered');
+      }).catch(err => console.warn('SW register failed:', err));
+    }
+  </script>
+</body>
 </html>
